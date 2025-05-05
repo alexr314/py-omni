@@ -66,3 +66,15 @@ class OmniFocusClient:
         '''
         output = self.run_applescript(script)
         return [f.strip() for f in output.split(", ")] if output else []
+    
+    def list_folders(self) -> list[str]:
+        script = '''
+        tell application "OmniFocus"
+            tell default document
+                get name of every folder
+            end tell
+        end tell
+        '''
+        output = self.run_applescript(script)
+        return [f.strip() for f in output.split(", ")] if output else []
+
