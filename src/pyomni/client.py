@@ -1,5 +1,3 @@
-# src/pyomni/client.py
-
 import subprocess
 from pyomni.exceptions import (
     OmniFocusError,
@@ -101,43 +99,60 @@ class OmniFocusClient:
         return [f.strip() for f in output.split(", ")] if output else []
 
     def list_tasks(self, project_path: str) -> list[str]:
-        resolver_script, project_var = self._resolve_project_applescript(project_path)
-        script = f'''
-        tell application "OmniFocus"
-            {resolver_script}
-            tell {project_var}
-                get name of every task
+        if project_path.lower() == "inbox":
+            script = '''
+            tell application "OmniFocus"
+                tell default document
+                    get name of every inbox task
+                end tell
             end tell
-        end tell
-        '''
+            '''
+        else:
+            resolver_script, project_var = self._resolve_project_applescript(project_path)
+            script = f'''
+            tell application "OmniFocus"
+                {resolver_script}
+                tell {project_var}
+                    get name of every task
+                end tell
+            end tell
+            '''
+
         output = self.run_applescript(script)
         return [t.strip() for t in output.split(", ")] if output else []
-    
+
 
     def create_task(self, name: str, project_path: str = None, note: str = None, flagged: bool = False):
         if not name:
             raise ValueError("Task name is required")
 
-        if project_path:
-            resolver_script, target_var = self._resolve_project_applescript(project_path)
-            container_line = f'set theContainer to {target_var}'
-        else:
-            resolver_script = ''
-            container_line = 'set theContainer to inbox of default document'
-
         note_line = f'set note of newTask to "{note}"' if note else ''
         flagged_line = 'set flagged of newTask to true' if flagged else ''
 
-        script = f'''
-        tell application "OmniFocus"
-            {resolver_script}
-            {container_line}
-            tell theContainer
-                set newTask to make new task with properties {{name: "{name}"}}
-                {note_line}
-                {flagged_line}
+        if project_path:
+            parts = [p.strip() for p in project_path.split(">")]
+            project_name = parts[-1]
+
+            script = f'''
+            tell application "OmniFocus"
+                tell default document
+                    set theProject to first flattened project whose name is "{project_name}"
+                    set newTask to make new task with properties {{name: "{name}"}} at end of tasks of theProject
+                    {note_line}
+                    {flagged_line}
+                end tell
             end tell
-        end tell
-        '''
+            '''
+        else:
+            # Inbox
+            script = f'''
+            tell application "OmniFocus"
+                tell default document
+                    set newTask to make new inbox task with properties {{name: "{name}"}}
+                    {note_line}
+                    {flagged_line}
+                end tell
+            end tell
+            '''
 
         self.run_applescript(script)
