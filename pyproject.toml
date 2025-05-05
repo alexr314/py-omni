@@ -1,0 +1,11 @@
+[project]
+name = "py-omni"
+version = "0.1.0"
+description = "A lightweight Python library for automating OmniFocus on macOS via AppleScript."
+authors = [{ name = "Your Name", email = "your@email.com" }]
+license = "MIT"
+dependencies = []
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
