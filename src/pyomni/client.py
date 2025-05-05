@@ -25,6 +25,28 @@ class OmniFocusClient:
             else:
                 raise AppleScriptExecutionError(f"AppleScript error: {error_message}")
         return result.stdout.strip()
+    
+    def _resolve_project_applescript(self, project_path: str) -> tuple[str, str]:
+        """
+        Resolves a nested project path like 'Folder > Subfolder > ProjectName'
+        Returns:
+            AppleScript lines to set a variable to the project reference
+            Name of the project variable (always 'currentProject')
+        """
+        parts = [p.strip() for p in project_path.split(">")]
+        folder_parts = parts[:-1]
+        project_name = parts[-1]
+
+        script_lines = ["set currentFolder to default document"]
+        for folder in folder_parts:
+            script_lines.append(
+                f'set currentFolder to first folder of currentFolder whose name is "{folder}"'
+            )
+        script_lines.append(
+            f'set currentProject to first project of currentFolder whose name is "{project_name}"'
+        )
+        return "\n".join(script_lines), "currentProject"
+
 
     def _resolve_folder_applescript(self, folder_path: str) -> tuple[str, str]:
         """
@@ -78,3 +100,44 @@ class OmniFocusClient:
         output = self.run_applescript(script)
         return [f.strip() for f in output.split(", ")] if output else []
 
+    def list_tasks(self, project_path: str) -> list[str]:
+        resolver_script, project_var = self._resolve_project_applescript(project_path)
+        script = f'''
+        tell application "OmniFocus"
+            {resolver_script}
+            tell {project_var}
+                get name of every task
+            end tell
+        end tell
+        '''
+        output = self.run_applescript(script)
+        return [t.strip() for t in output.split(", ")] if output else []
+    
+
+    def create_task(self, name: str, project_path: str = None, note: str = None, flagged: bool = False):
+        if not name:
+            raise ValueError("Task name is required")
+
+        if project_path:
+            resolver_script, target_var = self._resolve_project_applescript(project_path)
+            container_line = f'set theContainer to {target_var}'
+        else:
+            resolver_script = ''
+            container_line = 'set theContainer to inbox of default document'
+
+        note_line = f'set note of newTask to "{note}"' if note else ''
+        flagged_line = 'set flagged of newTask to true' if flagged else ''
+
+        script = f'''
+        tell application "OmniFocus"
+            {resolver_script}
+            {container_line}
+            tell theContainer
+                set newTask to make new task with properties {{name: "{name}"}}
+                {note_line}
+                {flagged_line}
+            end tell
+        end tell
+        '''
+
+        self.run_applescript(script)
