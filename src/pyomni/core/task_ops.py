@@ -4,7 +4,9 @@ from pyomni.core.resolvers import resolve_project_applescript
 from pyomni.core.resolvers import safe_resolve_project_applescript
 from pyomni.core.task_scripts import build_task_query_applescript
 from pyomni.core.task_parsers import parse_task_block
+from pyomni.core.inbox_task import is_inbox_task
 from pyomni.models.task import Task
+from datetime import datetime
 
 
 def list_tasks(project_path: str) -> List[Task]:
@@ -33,7 +35,6 @@ end tell
 
     blocks = output.strip().split("\n\n")
     return [parse_task_block(block) for block in blocks if block.strip()]
-
 
 
 def create_task(name: str, project_path: Optional[str] = None, note: Optional[str] = None, flagged: bool = False):
@@ -68,17 +69,6 @@ def create_task(name: str, project_path: Optional[str] = None, note: Optional[st
 
     run_applescript(script)
 
-
-def is_inbox_task(task_id: str) -> bool:
-    """Check if a task is in the Inbox."""
-    script = f'''
-    tell application "OmniFocus"
-        tell default document
-            return exists (first inbox task whose id is "{task_id}")
-        end tell
-    end tell
-    '''
-    return run_applescript(script).strip().lower() == "true"
 
 def complete_task(task_id: str):
     """
@@ -133,4 +123,24 @@ def complete_task(task_id: str):
         end tell
         '''
     
+    run_applescript(script)
+
+
+def set_due_date(task_id: str, due: datetime):
+    """
+    Set the due date of a task in OmniFocus.
+    
+    Args:
+        task_id (str): The unique ID of the task.
+        due (datetime): The new due date.
+    """
+    date_str = due.strftime("%B %d, %Y at %I:%M:%S %p")  # AppleScript-friendly
+    script = f'''
+    tell application "OmniFocus"
+        tell default document
+            set t to first flattened task whose id is "{task_id}"
+            set due date of t to date "{date_str}"
+        end tell
+    end tell
+    '''
     run_applescript(script)

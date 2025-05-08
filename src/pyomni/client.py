@@ -1,7 +1,8 @@
 from pyomni.core.task_ops import (
     list_tasks,
     create_task,
-    complete_task
+    complete_task,
+    set_due_date,
 )
 from pyomni.core.folder_ops import (
     list_folders,
@@ -28,3 +29,5 @@ class OmniFocusClient:
     def complete_task(self, task_id: str):
         return complete_task(task_id)
 
+    def set_due_date(self, task_id: str, due_date: str):
+        return set_due_date(task_id, due_date)

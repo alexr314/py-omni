@@ -3,7 +3,10 @@ from typing import List, Optional
 from pyomni.models.task import Task
 
 
-def parse_date(raw: str) -> Optional[datetime]:
+def parse_date(raw) -> Optional[datetime]:
+    raw = str(raw).strip().lower()
+    if not raw or raw == "missing value":
+        return None
     try:
         return datetime.strptime(raw, "%A, %B %d, %Y at %I:%M:%S %p")
     except Exception:
@@ -57,19 +60,19 @@ def parse_task_block(block: str) -> Task:
         id=fields.get("id", ""),
         name=fields.get("name", ""),
         note=fields.get("note"),
-        flagged=fields.get("flagged", "false") == "true",
-        completed=fields.get("completed", "false") == "true",
-        blocked=fields.get("blocked", "false") == "true",
-        dropped=fields.get("dropped", "false") == "true",
-        in_inbox=fields.get("in_inbox", "false") == "true",
-        defer_date=fields.get("defer_date") or None,
-        due_date=fields.get("due_date") or None,
-        creation_date=fields.get("creation_date") or None,
-        modification_date=fields.get("modification_date") or None,
-        completion_date=fields.get("completion_date") or None,
-        dropped_date=fields.get("dropped_date") or None,
-        estimated_minutes=fields.get("estimated_minutes") or None,
-        tags=[tag.strip() for tag in fields.get("tags", "").split(",")] if "tags" in fields else [],
-        container=None,  # Set separately if needed
+        flagged=parse_bool(fields.get("flagged", "false")),
+        completed=parse_bool(fields.get("completed", "false")),
+        blocked=parse_bool(fields.get("blocked", "false")),
+        dropped=parse_bool(fields.get("dropped", "false")),
+        in_inbox=parse_bool(fields.get("in_inbox", "false")),
+        defer_date=parse_date(fields.get("defer_date")),
+        due_date=parse_date(fields.get("due_date")),
+        creation_date=parse_date(fields.get("creation_date")),
+        modification_date=parse_date(fields.get("modification_date")),
+        completion_date=parse_date(fields.get("completion_date")),
+        dropped_date=parse_date(fields.get("dropped_date")),
+        estimated_minutes=parse_int(fields.get("estimated_minutes")),
+        tags=parse_list(fields.get("tags", "")),
+        container=None,
         children=children
     )
