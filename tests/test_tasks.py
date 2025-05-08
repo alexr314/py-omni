@@ -80,21 +80,53 @@ def test_complete_task_marks_as_complete():
 
 def test_set_due_date_updates_correctly():
     client = OmniFocusClient()
-    name = "TDD Due Date Task"
+    name = f"TDD Due Date Task {datetime.now().timestamp()}"
     client.create_task(name)
 
     task = wait_for_task(name, lambda: client.list_tasks("Inbox"))
     assert task, "Task was not created"
-    assert not task.due_date, "Task should not have a due date initially"
+    assert task.due_date is None, f"Expected no due date, got {task.due_date}"
 
-    new_due = datetime.now() + timedelta(days=1)
+    new_due = datetime(2025, 12, 25, 17, 0, 0)
     client.set_due_date(task.id, new_due)
 
+    updated = wait_for_task(name, lambda: [t for t in client.list_tasks("Inbox") if t.id == task.id])
+    assert updated and updated.due_date == new_due
+
+def test_update_task_fields():
+    client = OmniFocusClient()
+    name = f"TDD Update Task {datetime.now().timestamp()}"
+    client.create_task(name)
+
+    task = wait_for_task(name, lambda: client.list_tasks("Inbox"))
+    assert task, "Task should have been created"
+
+    client.update_task(task.id, note="Updated note", flagged=True)
+
     def fetch_updated():
-        return [t for t in client.list_tasks("Inbox") if t.id == task.id]
+        tasks = client.list_tasks("Inbox")
+        for t in tasks:
+            print(f"→ {t.id} | {t.name} | flagged: {t.flagged} | note: {t.note}")
+        return [t for t in tasks if t.id == task.id]
 
     updated = wait_for_task(name, fetch_updated)
-    assert updated, "Task not found after due date update"
-    assert updated.due_date, "Due date was not set"
-    # Optional: add a fuzzy time comparison
-    assert abs((updated.due_date - new_due).total_seconds()) < 60, "Due date not close enough"
+    assert updated, "Task should be found after update"
+    assert updated.note == "Updated note"
+    assert updated.flagged is True
+
+
+def test_delete_task_removes_it():
+    client = OmniFocusClient()
+    name = "TDD Delete Task"
+    client.create_task(name)
+
+    task = wait_for_task(name, lambda: client.list_tasks("Inbox"))
+    assert task
+
+    client.delete_task(task.id)
+
+    def search_deleted():
+        return [t for t in client.list_tasks("Inbox") if t.id == task.id]
+
+    deleted = wait_for_task(name, search_deleted)
+    assert deleted is None, "Task should no longer exist after deletion"

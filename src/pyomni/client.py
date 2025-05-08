@@ -3,6 +3,9 @@ from pyomni.core.task_ops import (
     create_task,
     complete_task,
     set_due_date,
+    set_defer_date,
+    update_task,
+    delete_task,
 )
 from pyomni.core.folder_ops import (
     list_folders,
@@ -31,3 +34,16 @@ class OmniFocusClient:
 
     def set_due_date(self, task_id: str, due_date: str):
         return set_due_date(task_id, due_date)
+    
+    def set_defer_date(self, task_id: str, defer_date: str):
+        return set_defer_date(task_id, defer_date)
+    
+    # def update_task(self, task_id: str, note: str = None, flagged: bool = False):
+    #     return update_task(task_id, note, flagged)
+
+    def update_task(self, task_id: str, name=None, note=None, flagged=None):
+        return update_task(task_id, name=name, note=note, flagged=flagged)
+
+    
+    def delete_task(self, task_id: str):
+        return delete_task(task_id)

@@ -144,3 +144,56 @@ def set_due_date(task_id: str, due: datetime):
     end tell
     '''
     run_applescript(script)
+
+
+def set_defer_date(task_id: str, date: datetime):
+    """
+    Placeholder for setting the defer date of a task.
+    """
+    raise NotImplementedError("Setting defer date is not yet implemented.")
+
+
+def update_task(task_id: str, name: Optional[str] = None, note: Optional[str] = None, flagged: Optional[bool] = None):
+    """
+    Updates basic fields of a task by its ID. Only updates fields that are not None.
+    """
+    def escape(text: str) -> str:
+        return str(text).replace('"', '\\"')
+
+    updates = []
+    if name is not None:
+        updates.append(f'set name of t to "{escape(name)}"')
+    if note is not None:
+        updates.append(f'set note of t to "{escape(note)}"')
+    if flagged is not None:
+        updates.append(f'set flagged of t to {"true" if flagged else "false"}')
+
+    if not updates:
+        return  # Nothing to update
+
+    updates_block = "\n".join(updates)
+    script = f'''
+    tell application "OmniFocus"
+        tell default document
+            set t to first flattened task whose id is "{task_id}"
+            {updates_block}
+        end tell
+    end tell
+    '''
+    run_applescript(script)
+
+
+def delete_task(task_id: str):
+    """
+    Deletes a task by ID from OmniFocus.
+    """
+    script = f'''
+    tell application "OmniFocus"
+        tell default document
+            set t to first flattened task whose id is "{task_id}"
+            delete t
+        end tell
+
+    end tell
+    '''
+    run_applescript(script)
