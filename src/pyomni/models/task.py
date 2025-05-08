@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, List
 from datetime import datetime
 
@@ -21,3 +21,4 @@ class Task:
     estimated_minutes: Optional[int] = None
     tags: Optional[List[str]] = None
     container: Optional[str] = None  # Project name or 'Inbox'
+    children: List["Task"] = field(default_factory=list)

@@ -1,123 +1,28 @@
-from datetime import datetime
 from typing import List, Optional
 from pyomni.core.applescript import run_applescript
 from pyomni.core.resolvers import resolve_project_applescript
+from pyomni.core.task_scripts import build_task_query_applescript
+from pyomni.core.task_parsers import parse_task_dict
 from pyomni.models.task import Task
-
-
-def parse_date(raw: str) -> Optional[datetime]:
-    try:
-        return datetime.strptime(raw, "%A, %B %d, %Y at %I:%M:%S %p")
-    except Exception:
-        return None
-
-
-def parse_bool(val: str) -> bool:
-    return val.lower() == "true"
-
-
-def parse_list(val: str) -> List[str]:
-    return [v.strip() for v in val.split(",")] if val else []
-
-
-def parse_int(val: str) -> Optional[int]:
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return None
-
-
-
-def parse_task_dict(task_data: dict) -> Task:
-    return Task(
-        id=task_data.get("id", ""),
-        name=task_data.get("name", ""),
-        note=task_data.get("note"),
-        flagged=parse_bool(task_data.get("flagged", "false")),
-        completed=parse_bool(task_data.get("completed", "false")),
-        blocked=parse_bool(task_data.get("blocked", "false")),
-        dropped=parse_bool(task_data.get("dropped", "false")),
-        defer_date=parse_date(task_data.get("defer_date", "")),
-        due_date=parse_date(task_data.get("due_date", "")),
-        creation_date=parse_date(task_data.get("creation_date", "")),
-        modification_date=parse_date(task_data.get("modification_date", "")),
-        completion_date=parse_date(task_data.get("completion_date", "")),
-        dropped_date=parse_date(task_data.get("dropped_date", "")),
-        in_inbox=parse_bool(task_data.get("in_inbox", "false")),
-        estimated_minutes=parse_int(task_data.get("estimated_minutes")),
-        tags=parse_list(task_data.get("tags")),
-        container=None  # Could populate later if desired
-    )
 
 
 def list_tasks(project_path: str) -> List[Task]:
     if project_path.lower() == "inbox":
-        script = '''
+        script = f'''
         tell application "OmniFocus"
             tell default document
-                set taskList to every inbox task
-                set taskStrings to {}
-                repeat with t in taskList
-                    set tagNames to name of every tag of t
-                    set tagString to tagNames as string
-
-                    set taskString to "{" & ¬
-                        "id:\\"" & id of t & "\\", " & ¬
-                        "name:\\"" & name of t & "\\", " & ¬
-                        "note:\\"" & note of t & "\\", " & ¬
-                        "flagged:" & flagged of t & ", " & ¬
-                        "completed:" & completed of t & ", " & ¬
-                        "blocked:" & blocked of t & ", " & ¬
-                        "dropped:" & dropped of t & ", " & ¬
-                        "in_inbox:" & in inbox of t & ", " & ¬
-                        "defer_date:\\"" & defer date of t & "\\", " & ¬
-                        "due_date:\\"" & due date of t & "\\", " & ¬
-                        "creation_date:\\"" & creation date of t & "\\", " & ¬
-                        "modification_date:\\"" & modification date of t & "\\", " & ¬
-                        "completion_date:\\"" & completion date of t & "\\", " & ¬
-                        "dropped_date:\\"" & dropped date of t & "\\", " & ¬
-                        "estimated_minutes:" & estimated minutes of t & ", " & ¬
-                        "tags:\\"" & tagString & "\\"}"
-
-                    set end of taskStrings to taskString
-                end repeat
-                return taskStrings
+                {build_task_query_applescript("every inbox task")}
             end tell
         end tell
         '''
+
     else:
         resolver_script, project_var = resolve_project_applescript(project_path)
         script = f'''
         tell application "OmniFocus"
             {resolver_script}
             tell {project_var}
-                set taskList to every task
-                set taskStrings to {{}}
-                repeat with t in taskList
-                    set tagNames to name of every tag of t
-                    set tagString to tagNames as string
-
-                    set taskString to "{{" & ¬
-                        "id:\\"" & id of t & "\\", " & ¬
-                        "name:\\"" & name of t & "\\", " & ¬
-                        "note:\\"" & note of t & "\\", " & ¬
-                        "flagged:" & flagged of t & ", " & ¬
-                        "completed:" & completed of t & ", " & ¬
-                        "blocked:" & blocked of t & ", " & ¬
-                        "dropped:" & dropped of t & ", " & ¬
-                        "in_inbox:" & in inbox of t & ", " & ¬
-                        "defer_date:\\"" & defer date of t & "\\", " & ¬
-                        "due_date:\\"" & due date of t & "\\", " & ¬
-                        "creation_date:\\"" & creation date of t & "\\", " & ¬
-                        "modification_date:\\"" & modification date of t & "\\", " & ¬
-                        "completion_date:\\"" & completion date of t & "\\", " & ¬
-                        "dropped_date:\\"" & dropped date of t & "\\", " & ¬
-                        "estimated_minutes:" & estimated minutes of t & ", " & ¬
-                        "tags:\\"" & tagString & "\\"}}"
-
-                    set end of taskStrings to taskString
-                end repeat
-                return taskStrings
+                {build_task_query_applescript("every task")}
             end tell
         end tell
         '''
@@ -126,27 +31,44 @@ def list_tasks(project_path: str) -> List[Task]:
     if not output:
         return []
 
-    task_objects = []
-    task_lines = output.split("\n")
-
-    for line in task_lines:
-        line = line.strip().lstrip("{").rstrip("}")
-        if not line:
-            continue
-
-        kvs = line.split(", ")
-        task_data = {}
-        for kv in kvs:
-            if ":" not in kv:
-                continue
-            key, val = kv.split(":", 1)
-            task_data[key.strip()] = val.strip().strip('"')
-
-        task_objects.append(parse_task_dict(task_data))
-
-    return task_objects
+    lines = output.strip().split("\n")
+    return [parse_task_dict(line) for line in lines if line.strip()]
 
 
+
+# def _applescript_for_tasks(task_selector: str) -> str:
+#     """Returns the AppleScript block to extract metadata from a group of tasks."""
+#     return f'''
+#         set taskList to {task_selector}
+#         set taskStrings to {{}}
+#         repeat with t in taskList
+#             set tagNames to name of every tag of t
+#             set tagString to tagNames as string
+
+#             set taskString to "{{" & ¬
+#                 "id:\\"" & id of t & "\\", " & ¬
+#                 "name:\\"" & name of t & "\\", " & ¬
+#                 "note:\\"" & note of t & "\\", " & ¬
+#                 "flagged:" & flagged of t & ", " & ¬
+#                 "completed:" & completed of t & ", " & ¬
+#                 "blocked:" & blocked of t & ", " & ¬
+#                 "dropped:" & dropped of t & ", " & ¬
+#                 "in_inbox:" & in inbox of t & ", " & ¬
+#                 "defer_date:\\"" & defer date of t & "\\", " & ¬
+#                 "due_date:\\"" & due date of t & "\\", " & ¬
+#                 "creation_date:\\"" & creation date of t & "\\", " & ¬
+#                 "modification_date:\\"" & modification date of t & "\\", " & ¬
+#                 "completion_date:\\"" & completion date of t & "\\", " & ¬
+#                 "dropped_date:\\"" & dropped date of t & "\\", " & ¬
+#                 "estimated_minutes:" & estimated minutes of t & ", " & ¬
+#                 "tags:\\"" & tagString & "\\"}}"
+
+#             set end of taskStrings to taskString
+#         end repeat
+#         return taskStrings
+#     '''
+
+# create_task remains unchanged
 def create_task(name: str, project_path: Optional[str] = None, note: Optional[str] = None, flagged: bool = False):
     if not name:
         raise ValueError("Task name is required")
