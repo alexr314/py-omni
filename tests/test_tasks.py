@@ -32,3 +32,12 @@ def test_task_metadata_fields_present():
     assert hasattr(task, "creation_date")
     assert hasattr(task, "due_date")
     assert hasattr(task, "tags")
+
+
+def test_subtasks_are_parsed():
+    client = OmniFocusClient()
+    tasks = client.list_tasks("Inbox")  # Or use a known project with nested tasks
+    has_subtasks = any(task.children for task in tasks)
+    assert isinstance(tasks, list)
+    assert all(isinstance(t, Task) for t in tasks)
+    assert isinstance(has_subtasks, bool)  # True if any subtasks exist

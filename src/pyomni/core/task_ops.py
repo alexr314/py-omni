@@ -2,73 +2,90 @@ from typing import List, Optional
 from pyomni.core.applescript import run_applescript
 from pyomni.core.resolvers import resolve_project_applescript
 from pyomni.core.task_scripts import build_task_query_applescript
-from pyomni.core.task_parsers import parse_task_dict
+from pyomni.core.task_parsers import parse_task_block
 from pyomni.models.task import Task
+# src/pyomni/core/task_ops.py
 
+from typing import List
+from pyomni.core.applescript import run_applescript
+from pyomni.core.resolvers import resolve_project_applescript
+from pyomni.core.task_scripts import build_task_query_applescript
+from pyomni.core.task_parsers import parse_task_block
+from pyomni.models.task import Task
 
 def list_tasks(project_path: str) -> List[Task]:
     if project_path.lower() == "inbox":
-        script = f'''
-        tell application "OmniFocus"
-            tell default document
-                {build_task_query_applescript("every inbox task")}
-            end tell
-        end tell
-        '''
-
+        script = build_task_query_applescript("every inbox task")
     else:
         resolver_script, project_var = resolve_project_applescript(project_path)
+        selector = f"every task of {project_var}"
         script = f'''
-        tell application "OmniFocus"
-            {resolver_script}
-            tell {project_var}
-                {build_task_query_applescript("every task")}
-            end tell
-        end tell
-        '''
+tell application "OmniFocus"
+    {resolver_script}
+    tell default document
+        {build_task_query_applescript("every task of currentProject")}
+    end tell
+end tell
+'''
 
     output = run_applescript(script)
-    if not output:
+    print("======== RAW OUTPUT BEGIN ========")
+    print(output)
+    print("======== RAW OUTPUT END ==========")
+
+    if not output.strip():
         return []
 
-    lines = output.strip().split("\n")
-    return [parse_task_dict(line) for line in lines if line.strip()]
+    blocks = output.strip().split("\n\n")
+    return [parse_task_block(block) for block in blocks if block.strip()]
 
+# # src/pyomni/core/task_ops.py
 
+# from typing import List
+# from pyomni.core.applescript import run_applescript
+# from pyomni.core.resolvers import resolve_project_applescript
+# from pyomni.models.task import Task
 
-# def _applescript_for_tasks(task_selector: str) -> str:
-#     """Returns the AppleScript block to extract metadata from a group of tasks."""
-#     return f'''
-#         set taskList to {task_selector}
-#         set taskStrings to {{}}
-#         repeat with t in taskList
-#             set tagNames to name of every tag of t
-#             set tagString to tagNames as string
-
-#             set taskString to "{{" & ¬
-#                 "id:\\"" & id of t & "\\", " & ¬
-#                 "name:\\"" & name of t & "\\", " & ¬
-#                 "note:\\"" & note of t & "\\", " & ¬
-#                 "flagged:" & flagged of t & ", " & ¬
-#                 "completed:" & completed of t & ", " & ¬
-#                 "blocked:" & blocked of t & ", " & ¬
-#                 "dropped:" & dropped of t & ", " & ¬
-#                 "in_inbox:" & in inbox of t & ", " & ¬
-#                 "defer_date:\\"" & defer date of t & "\\", " & ¬
-#                 "due_date:\\"" & due date of t & "\\", " & ¬
-#                 "creation_date:\\"" & creation date of t & "\\", " & ¬
-#                 "modification_date:\\"" & modification date of t & "\\", " & ¬
-#                 "completion_date:\\"" & completion date of t & "\\", " & ¬
-#                 "dropped_date:\\"" & dropped date of t & "\\", " & ¬
-#                 "estimated_minutes:" & estimated minutes of t & ", " & ¬
-#                 "tags:\\"" & tagString & "\\"}}"
-
-#             set end of taskStrings to taskString
+# def list_tasks(project_path: str) -> List[Task]:
+#     if project_path.lower() == "inbox":
+#         script = """
+# tell application "OmniFocus"
+#     tell default document
+#         set props to {}
+#         repeat with t in every inbox task
+#             set end of props to (id of t as text) & "\t" & (name of t)
 #         end repeat
-#         return taskStrings
-#     '''
+#         return props
+#     end tell
+# end tell
+# """
+#     else:
+#         resolver_script, project_var = resolve_project_applescript(project_path)
+#         script = f"""
+# tell application "OmniFocus"
+#     {resolver_script}
+#     tell default document
+#         set props to {{}}
+#         repeat with t in every task of {project_var}
+#             set end of props to (id of t as text) & "\t" & (name of t)
+#         end repeat
+#         return props
+#     end tell
+# end tell
+# """
 
-# create_task remains unchanged
+#     output = run_applescript(script)
+
+#     print("RAW APPLESCRIPT OUTPUT:")
+#     print(output)
+
+#     if not output:
+#         return []
+
+#     task_blocks = output.strip().split("\n\n")
+#     return [parse_task_block(block) for block in task_blocks if block.strip()]
+
+
 def create_task(name: str, project_path: Optional[str] = None, note: Optional[str] = None, flagged: bool = False):
     if not name:
         raise ValueError("Task name is required")
@@ -77,13 +94,12 @@ def create_task(name: str, project_path: Optional[str] = None, note: Optional[st
     flagged_line = 'set flagged of newTask to true' if flagged else ""
 
     if project_path:
-        parts = [p.strip() for p in project_path.split(">")]
-        project_name = parts[-1]
+        resolver_script, project_var = resolve_project_applescript(project_path)
         script = f'''
         tell application "OmniFocus"
+            {resolver_script}
             tell default document
-                set theProject to first flattened project whose name is "{project_name}"
-                set newTask to make new task with properties {{name: "{name}"}} at end of tasks of theProject
+                set newTask to make new task with properties {{name: "{name}"}} at end of tasks of {project_var}
                 {note_line}
                 {flagged_line}
             end tell

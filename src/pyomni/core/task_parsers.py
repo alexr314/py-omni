@@ -1,7 +1,6 @@
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
 from pyomni.models.task import Task
-
 
 def parse_date(raw: str) -> Optional[datetime]:
     try:
@@ -9,14 +8,11 @@ def parse_date(raw: str) -> Optional[datetime]:
     except Exception:
         return None
 
-
 def parse_bool(val: str) -> bool:
     return val.lower() == "true"
 
-
 def parse_list(val: str) -> List[str]:
     return [v.strip() for v in val.split(",")] if val else []
-
 
 def parse_int(val: str) -> Optional[int]:
     try:
@@ -24,34 +20,85 @@ def parse_int(val: str) -> Optional[int]:
     except (ValueError, TypeError):
         return None
 
+# def parse_task_block(block: str) -> Task:
+#     lines = block.strip().split("\n")
+#     data = {}
+#     children = []
 
-def parse_task_dict(line: str) -> Task:
-    """Parses a single task string into a Task object, including any child lines if present."""
-    line = line.strip().lstrip("{").rstrip("}")
-    kvs = line.split(", ")
-    task_data = {}
-    for kv in kvs:
-        if ":" not in kv:
+#     for line in lines:
+#         if line.startswith("CHILD:"):
+#             child_line = line[len("CHILD:"):].strip()
+#             children.append(parse_task_block(child_line))
+#         elif ":" in line:
+#             key, val = line.split(":", 1)
+#             data[key.strip()] = val.strip().strip('"')
+
+#     return Task(
+#         id=data.get("id", ""),
+#         name=data.get("name", ""),
+#         note=data.get("note"),
+#         flagged=parse_bool(data.get("flagged", "false")),
+#         completed=parse_bool(data.get("completed", "false")),
+#         blocked=parse_bool(data.get("blocked", "false")),
+#         dropped=parse_bool(data.get("dropped", "false")),
+#         defer_date=parse_date(data.get("defer_date", "")),
+#         due_date=parse_date(data.get("due_date", "")),
+#         creation_date=parse_date(data.get("creation_date", "")),
+#         modification_date=parse_date(data.get("modification_date", "")),
+#         completion_date=parse_date(data.get("completion_date", "")),
+#         dropped_date=parse_date(data.get("dropped_date", "")),
+#         in_inbox=parse_bool(data.get("in_inbox", "false")),
+#         estimated_minutes=parse_int(data.get("estimated_minutes")),
+#         tags=parse_list(data.get("tags")),
+#         children=children
+#     )
+
+
+def parse_task_block(block: str) -> Task:
+    from pyomni.models.task import Task
+
+    fields = {}
+    children = []
+
+    for line in block.strip().splitlines():
+        if not line.strip():
             continue
-        key, val = kv.split(":", 1)
-        task_data[key.strip()] = val.strip().strip('"')
+        if line.startswith("CHILD:"):
+            try:
+                _, keyval = line.split("CHILD:", 1)
+                key, val = keyval.split(":", 1)
+                if children and key == "id":
+                    children.append({"id": val.strip()})
+                elif children and key == "name":
+                    children[-1]["name"] = val.strip()
+                else:
+                    children.append({key.strip(): val.strip()})
+            except ValueError:
+                continue
+        else:
+            try:
+                key, val = line.split(":", 1)
+                fields[key.strip()] = val.strip()
+            except ValueError:
+                continue
 
     return Task(
-        id=task_data.get("id", ""),
-        name=task_data.get("name", ""),
-        note=task_data.get("note"),
-        flagged=parse_bool(task_data.get("flagged", "false")),
-        completed=parse_bool(task_data.get("completed", "false")),
-        blocked=parse_bool(task_data.get("blocked", "false")),
-        dropped=parse_bool(task_data.get("dropped", "false")),
-        defer_date=parse_date(task_data.get("defer_date", "")),
-        due_date=parse_date(task_data.get("due_date", "")),
-        creation_date=parse_date(task_data.get("creation_date", "")),
-        modification_date=parse_date(task_data.get("modification_date", "")),
-        completion_date=parse_date(task_data.get("completion_date", "")),
-        dropped_date=parse_date(task_data.get("dropped_date", "")),
-        in_inbox=parse_bool(task_data.get("in_inbox", "false")),
-        estimated_minutes=parse_int(task_data.get("estimated_minutes")),
-        tags=parse_list(task_data.get("tags")),
-        children=[]  # You can extend to include child parsing later
+        id=fields.get("id", ""),
+        name=fields.get("name", ""),
+        note=fields.get("note"),
+        flagged=fields.get("flagged", "false") == "true",
+        completed=fields.get("completed", "false") == "true",
+        blocked=fields.get("blocked", "false") == "true",
+        dropped=fields.get("dropped", "false") == "true",
+        in_inbox=fields.get("in_inbox", "false") == "true",
+        defer_date=fields.get("defer_date") or None,
+        due_date=fields.get("due_date") or None,
+        creation_date=fields.get("creation_date") or None,
+        modification_date=fields.get("modification_date") or None,
+        completion_date=fields.get("completion_date") or None,
+        dropped_date=fields.get("dropped_date") or None,
+        estimated_minutes=fields.get("estimated_minutes") or None,
+        tags=[tag.strip() for tag in fields.get("tags", "").split(",")] if "tags" in fields else [],
+        container=None,  # Set separately if needed
+        children=children
     )
