@@ -1,6 +1,7 @@
 from pyomni.core.task_ops import (
     list_tasks,
     create_task,
+    complete_task
 )
 from pyomni.core.folder_ops import (
     list_folders,
@@ -23,3 +24,7 @@ class OmniFocusClient:
 
     def list_projects_in_folder(self, folder_path: str) -> list[str]:
         return list_projects_in_folder(folder_path)
+    
+    def complete_task(self, task_id: str):
+        return complete_task(task_id)
+

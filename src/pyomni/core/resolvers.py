@@ -33,3 +33,14 @@ def resolve_folder_applescript(folder_path: str) -> tuple[str, str]:
                 f'set currentFolder to first folder of currentFolder whose name is "{name}"'
             )
     return "\n".join(script_lines), "currentFolder"
+
+
+def safe_resolve_project_applescript(project_path: str) -> tuple[str, str]:
+    parts = [p.strip() for p in project_path.split(">")]
+    if len(parts) == 1:
+        # Top-level project, no folder navigation
+        project_name = parts[0]
+        script = f'set currentProject to first project of default document whose name is "{project_name}"'
+        return script, "currentProject"
+    else:
+        return resolve_project_applescript(project_path)

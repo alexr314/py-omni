@@ -2,56 +2,27 @@ from datetime import datetime
 from typing import List, Optional
 from pyomni.models.task import Task
 
+
 def parse_date(raw: str) -> Optional[datetime]:
     try:
         return datetime.strptime(raw, "%A, %B %d, %Y at %I:%M:%S %p")
     except Exception:
         return None
 
+
 def parse_bool(val: str) -> bool:
     return val.lower() == "true"
 
+
 def parse_list(val: str) -> List[str]:
     return [v.strip() for v in val.split(",")] if val else []
+
 
 def parse_int(val: str) -> Optional[int]:
     try:
         return int(val)
     except (ValueError, TypeError):
         return None
-
-# def parse_task_block(block: str) -> Task:
-#     lines = block.strip().split("\n")
-#     data = {}
-#     children = []
-
-#     for line in lines:
-#         if line.startswith("CHILD:"):
-#             child_line = line[len("CHILD:"):].strip()
-#             children.append(parse_task_block(child_line))
-#         elif ":" in line:
-#             key, val = line.split(":", 1)
-#             data[key.strip()] = val.strip().strip('"')
-
-#     return Task(
-#         id=data.get("id", ""),
-#         name=data.get("name", ""),
-#         note=data.get("note"),
-#         flagged=parse_bool(data.get("flagged", "false")),
-#         completed=parse_bool(data.get("completed", "false")),
-#         blocked=parse_bool(data.get("blocked", "false")),
-#         dropped=parse_bool(data.get("dropped", "false")),
-#         defer_date=parse_date(data.get("defer_date", "")),
-#         due_date=parse_date(data.get("due_date", "")),
-#         creation_date=parse_date(data.get("creation_date", "")),
-#         modification_date=parse_date(data.get("modification_date", "")),
-#         completion_date=parse_date(data.get("completion_date", "")),
-#         dropped_date=parse_date(data.get("dropped_date", "")),
-#         in_inbox=parse_bool(data.get("in_inbox", "false")),
-#         estimated_minutes=parse_int(data.get("estimated_minutes")),
-#         tags=parse_list(data.get("tags")),
-#         children=children
-#     )
 
 
 def parse_task_block(block: str) -> Task:
